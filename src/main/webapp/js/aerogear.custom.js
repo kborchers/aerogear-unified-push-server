@@ -662,3 +662,62 @@ function bindSubscribeSuccess( channelID, request ) {
         request.onsuccess( event );
     });
 }
+
+(function( AeroGear, $, undefined ) {
+    /**
+        DESCRIPTION
+        @constructs AeroGear.UnifiedPushClient
+        @param {String} variantID - the id representing the mobile application variant
+        @param {String} variantSecret - the secret for the mobile application variant
+        @param {String} [pushServerURL="http://" + window.location.hostname + ":8080/ag-push/rest/registry/device"] - location of the unified push server
+        @returns {Object} The created unified push server client
+     */
+    AeroGear.UnifiedPushClient = function( variantID, variantSecret, pushServerURL ) {
+        // Allow instantiation without using new
+        if ( !( this instanceof AeroGear.UnifiedPushClient ) ) {
+            return new AeroGear.UnifiedPushClient( variantID, variantSecret, pushServerURL );
+        }
+
+        this.registerWithPushServer = function( messageType, endpoint, alias ) {
+            var RegistrationError,
+                url = pushServerURL || "http://" + window.location.hostname + ":8080/ag-push/rest/registry/device";
+
+            if ( messageType !== "broadcast" && !alias ) {
+                throw "UnifiedPushRegistrationException";
+            }
+
+            $.ajax({
+                contentType: "application/json",
+                dataType: "json",
+                type: "POST",
+				crossDomain: true,
+                url: url,
+                headers: {
+                    "Authorization": "Basic " + window.btoa(variantID + ":" + variantSecret)
+                },
+                data: JSON.stringify({
+                    category: messageType,
+                    deviceToken: endpoint.channelID,
+                    alias: alias
+                })
+            });
+        };
+
+        this.unregisterWithPushServer = function( endpoint ) {
+            var url = pushServerURL || "http://" + window.location.hostname + ":8080/ag-push/rest/registry/device";
+            $.ajax({
+                contentType: "application/json",
+                dataType: "json",
+                type: "DELETE",
+                url: url + "/" + endpoint.channelID,
+                headers: {
+                    "ag-mobile-variant": variantID
+                },
+                data: JSON.stringify({
+                    deviceToken: endpoint.channelID
+                })
+            });
+        };
+    };
+
+})( AeroGear, jQuery );
