@@ -1,7 +1,7 @@
 (function() {
     var mailEndpoint, mailRequest, fooEndpoint, fooRequest, broadcastRequest, broadcastEndpoint, testFrame,
         // Obviously this isn't secure but what we have for now
-        UPClient = AeroGear.UnifiedPushClient( AeroGear.SimplePush.variantID, "5143246f-e2b7-4d69-90c3-08cfe8e513c4", "http://pusheedemo-aerogearkb.rhcloud.com/ag-push/rest/registry/device" );
+        UPClient = AeroGear.UnifiedPushClient( AeroGear.SimplePush.variantID, "baec0293-a04e-4e49-82ef-b60ccbfba2fd", "http://localhost:8080/ag-push/rest/registry/device" );
 
     getTextAreaElement().value = "Web Socket opened!";
 
@@ -90,12 +90,12 @@
         }
 
         $.ajax({
-            url: "http://" + window.location.hostname + "/ag-push/rest/sender/" + urlSwitch,
+            url: "http://" + window.location.hostname + ":8080/ag-push/rest/sender/" + urlSwitch,
             contentType: "application/json",
             dataType: "json",
             type: "POST",
             headers: {
-                "Authorization": "Basic " + window.btoa("a63ce828-e83e-4959-abe6-ce3348df00b7:2129bee8-b363-4e03-a1e0-179a43806908")
+                "Authorization": "Basic " + window.btoa("f9e1a55e-4717-4652-a26d-39cc873d0964:517a2ae0-758f-4baa-9357-fd71488fef1b")
             },
             data: JSON.stringify( data ),
             complete: function() {

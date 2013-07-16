@@ -1,0 +1,10 @@
+# $WILDFLY_HOME/bin/jboss-cli.sh --file=/path/to/this/file.
+# You'll be prompted for a username and password which will need to be uncommented
+# in $AS7_HOME/standalone/configuration//mgmt-users.properties
+connect
+batch
+#/subsystem=datasources/jdbc-driver=mysql:add(driver-name=mysql,driver-module-name=com.mysql.jdbc,driver-xa-datasource-class-name=com.mysql.jdbc.jdbc2.optional.MysqlXADataSource)
+data-source add --name=MysqlDS --driver-name=mysql --jndi-name=java:jboss/datasources/MysqlDS --connection-url=jdbc:mysql://localhost:3306/pushee --user-name=pushee --password=pushee --use-ccm=false --max-pool-size=25 --blocking-timeout-wait-millis=5000
+data-source enable --name=MysqlDS
+run-batch
+#:reload
