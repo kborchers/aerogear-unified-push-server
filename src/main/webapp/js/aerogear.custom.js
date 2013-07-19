@@ -1,4 +1,4 @@
-/*! AeroGear JavaScript Library - v1.2.0-dev - 2013-07-16
+/*! AeroGear JavaScript Library - v1.2.0-dev - 2013-07-19
 * https://github.com/aerogear/aerogear-js
 * JBoss, Home of Professional Open Source
 * Copyright Red Hat, Inc., and individual contributors
@@ -505,7 +505,8 @@ AeroGear.Notifier.adapters.SimplePush = function( clientName, settings ) {
         name = clientName,
         connectURL = settings.connectURL || "",
         client = null,
-        pushStore = JSON.parse( localStorage.getItem("ag-push-store") || '{}' );
+        pushStore = JSON.parse( localStorage.getItem("ag-push-store") || '{}' ),
+        isConnected = false;
 
     pushStore.channels = pushStore.channels || [];
     for ( var channel in pushStore.channels ) {
@@ -589,6 +590,24 @@ AeroGear.Notifier.adapters.SimplePush = function( clientName, settings ) {
     };
 
     /**
+        Returns the value of the private isConnected var
+        @private
+        @augments AeroGear.Notifier.adapters.SimplePush
+     */
+    this.getIsConnected = function() {
+        return isConnected;
+    };
+
+    /**
+        Sets the value of the private isConnected var
+        @private
+        @augments AeroGear.Notifier.adapters.SimplePush
+     */
+    this.setIsConnected = function( value ) {
+        isConnected = value;
+    };
+
+    /**
      */
     this.processMessage = function( message ) {
         var channel, updates;
@@ -642,7 +661,13 @@ AeroGear.Notifier.adapters.SimplePush = function( clientName, settings ) {
         if ( channels && msg.uaid !== "" ) {
             msg.channels = [];
             for ( var length = channels.length, i = length - 1; i > -1; i-- ) {
-                msg.channels.push( pushStore.channels[ i ].channelID );
+                if ( pushStore.channels[ i ].status !== "new" ) {
+                    msg.channels.push( pushStore.channels[ i ].channelID );
+                }
+            }
+
+            if ( !msg.channels.length ) {
+                delete msg.channels;
             }
         }
 
@@ -707,28 +732,21 @@ AeroGear.Notifier.adapters.SimplePush.prototype.connect = function( options ) {
         message = JSON.parse( message.data );
 
         if ( message.messageType === "hello" ) {
+            that.setIsConnected( true );
             if ( message.uaid === pushStore.uaid ) {
                 for ( var channel in pushStore.channels ) {
-                    // Trigger the registration event since there will be no register message
-                    jQuery( navigator.push ).trigger( jQuery.Event( pushStore.channels[ channel ].channelID + "-success", {
-                        target: {
-                            result: pushStore.channels[ channel ]
-                        }
-                    }));
+                    if ( channel.status === "used" ) {
+                        // Trigger the registration event since there will be no register message
+                        jQuery( navigator.push ).trigger( jQuery.Event( pushStore.channels[ channel ].channelID + "-success", {
+                            target: {
+                                result: pushStore.channels[ channel ]
+                            }
+                        }));
+                    }
                 }
             } else {
                 // Set uaid to new server provided id
                 pushStore.uaid = message.uaid;
-
-                for ( var newChannel in pushStore.channels ) {
-                    if ( newChannel.state === "new" ) {
-                        // Reregister all channels set by user so far
-                        newChannel.channelID = uuid();
-                        that.bindSubscribeSuccess( newChannel.channelID, newChannel.requestObject );
-
-                        client.send('{"messageType": "register", "channelID": "' + newChannel.channelID + '"}');
-                    }
-                }
             }
 
             that.setPushStore( pushStore );
@@ -754,6 +772,7 @@ AeroGear.Notifier.adapters.SimplePush.prototype.disconnect = function( onDisconn
     var client = this.getClient();
 
     client.close();
+    this.setIsConnected( false );
     if ( onDisconnect ) {
         onDisconnect();
     }
@@ -767,7 +786,7 @@ AeroGear.Notifier.adapters.SimplePush.prototype.disconnect = function( onDisconn
 
  */
 AeroGear.Notifier.adapters.SimplePush.prototype.subscribe = function( channels, reset ) {
-    var index, response, channelID,
+    var index, response, channelID, channelLength,
         processed = false,
         client = this.getClient(),
         pushStore = this.getPushStore();
@@ -778,30 +797,44 @@ AeroGear.Notifier.adapters.SimplePush.prototype.subscribe = function( channels, 
 
     channels = AeroGear.isArray( channels ) ? channels : [ channels ];
     pushStore.channels = pushStore.channels || [];
+    channelLength = pushStore.channels.length;
 
     for ( var i = 0; i < channels.length; i++ ) {
         // check for previously registered channels
-        if ( pushStore.channels.length ) {
+        if ( channelLength ) {
             index = this.findChannelIndex( pushStore.channels, "state", "available" );
             if ( index !== undefined ) {
                 this.bindSubscribeSuccess( pushStore.channels[ index ].channelID, channels[ i ].requestObject );
                 channels[ i ].channelID = pushStore.channels[ index ].channelID;
-                channels[ i ].state = "used";
+                if ( client.readyState === SockJS.OPEN && this.getIsConnected() ) {
+                    channels[ i ].state = "used";
+                    // Trigger the registration event since there will be no register message
+                    jQuery( navigator.push ).trigger( jQuery.Event( channels[ i ].channelID + "-success", {
+                        target: {
+                            result: channels[ i ]
+                        }
+                    }));
+                } else {
+                    channels[ i ].state = "new";
+                }
                 pushStore.channels[ index ] = channels[ i ];
                 processed = true;
             }
         }
 
-        if ( !pushStore.channels.length || !processed ) {
+        if ( !processed ) {
             // No previous channels available so add a new one
-            channels[ i ].channelID = uuid();
             this.bindSubscribeSuccess( channels[ i ].channelID, channels[ i ].requestObject );
-            channels[ i ].state = "new";
-            pushStore.channels.push( channels[ i ] );
 
-            if ( client.readyState === SockJS.OPEN ) {
+            if ( client.readyState === SockJS.OPEN && this.getIsConnected() ) {
+                channels[ i ].state = "used";
                 client.send('{"messageType": "register", "channelID": "' + channels[ i ].channelID + '"}');
+            } else {
+                channels[ i ].channelID = uuid();
+                channels[ i ].state = "new";
             }
+
+            pushStore.channels.push( channels[ i ] );
         }
 
         processed = false;
@@ -896,7 +929,7 @@ AeroGear.Notifier.adapters.SimplePush.prototype.unsubscribe = function( channels
 
     simpleNotifier.connect({
         onConnect: function( data ) {
-            var pushStore = JSON.parse( localStorage.getItem("ag-push-store") || '{}' ),
+            var pushStore = simpleNotifier.getPushStore(),
                 channels = pushStore.channels || [];
 
             // Subscribe to any new channels
@@ -904,6 +937,7 @@ AeroGear.Notifier.adapters.SimplePush.prototype.unsubscribe = function( channels
                 if ( channels[ channel ].state === "new" ) {
                     simpleNotifier.subscribe({
                         channelID: channels[ channel ].channelID,
+                        requestObject: channels[ channel ].requestObject,
                         callback: function( message ) {
                             $( navigator.push ).trigger({
                                 type: "push",
