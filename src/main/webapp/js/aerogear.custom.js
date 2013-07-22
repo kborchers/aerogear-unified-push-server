@@ -1,4 +1,4 @@
-/*! AeroGear JavaScript Library - v1.2.0-dev - 2013-07-19
+/*! AeroGear JavaScript Library - v1.2.0-dev - 2013-07-22
 * https://github.com/aerogear/aerogear-js
 * JBoss, Home of Professional Open Source
 * Copyright Red Hat, Inc., and individual contributors
@@ -659,15 +659,15 @@ AeroGear.Notifier.adapters.SimplePush = function( clientName, settings ) {
             msg.uaid = pushStore.uaid;
         }
         if ( channels && msg.uaid !== "" ) {
-            msg.channels = [];
+            msg.channelIDs = [];
             for ( var length = channels.length, i = length - 1; i > -1; i-- ) {
                 if ( pushStore.channels[ i ].status !== "new" ) {
-                    msg.channels.push( pushStore.channels[ i ].channelID );
+                    msg.channelIDs.push( pushStore.channels[ i ].channelID );
                 }
             }
 
-            if ( !msg.channels.length ) {
-                delete msg.channels;
+            if ( !msg.channelIDs.length ) {
+                delete msg.channelIDs;
             }
         }
 
