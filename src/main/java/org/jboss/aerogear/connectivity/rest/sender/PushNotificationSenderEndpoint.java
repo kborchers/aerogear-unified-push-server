@@ -24,11 +24,14 @@ import javax.ejb.TransactionAttribute;
 import javax.inject.Inject;
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.OPTIONS;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.core.Context;
+import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.ResponseBuilder;
 import javax.ws.rs.core.Response.Status;
 
 import org.jboss.aerogear.connectivity.model.PushApplication;
@@ -50,6 +53,27 @@ public class PushNotificationSenderEndpoint {
     @Inject
     private SenderService senderService;
 
+    @OPTIONS
+    @Path("/selected")
+    public Response crossOriginForInstallations(@Context HttpHeaders headers) {
+        return appendPreflightResponseHeaders(headers, Response.ok()).build();
+    }
+
+    @OPTIONS
+    @Path("/broadcast")
+    public Response crossOriginForInstallations2(@Context HttpHeaders headers) {
+        return appendPreflightResponseHeaders(headers, Response.ok()).build();
+    }
+
+    private ResponseBuilder appendPreflightResponseHeaders(HttpHeaders headers, ResponseBuilder response) {
+        response.header("Access-Control-Allow-Origin", headers.getRequestHeader("Origin").get(0))
+                .header("Access-Control-Allow-Methods", "POST, DELETE")
+                .header("Access-Control-Allow-Headers", "accept, origin, content-type, authorization")
+                .header("Access-Control-Allow-Credentials", "true");
+
+        return response;
+    }
+
     @POST
     @Path("/broadcast")
     @Consumes(MediaType.APPLICATION_JSON)
@@ -70,8 +94,8 @@ public class PushNotificationSenderEndpoint {
         senderService.broadcast(pushApplication, payload);
         logger.info("Message submitted to PushNetworks for further processing");
 
-        return Response.status(Status.OK)
-                .entity("Job submitted").build();
+        return appendAllowOriginHeader(Response.status(Status.OK)
+                .entity("Job submitted"), request);
     }
 
     @POST
@@ -94,8 +118,14 @@ public class PushNotificationSenderEndpoint {
         senderService.selectiveSend(pushApplication, payload);
         logger.info("Message submitted to PushNetworks for further processing");
 
-        return Response.status(Status.OK)
-                .entity("Job submitted").build();
+        return appendAllowOriginHeader(Response.status(Status.OK)
+                .entity("Job submitted"), request);
+    }
+
+    private Response appendAllowOriginHeader(ResponseBuilder rb, HttpServletRequest request) {
+        return rb.header("Access-Control-Allow-Origin", request.getHeader("Origin")) // return submitted origin
+                .header("Access-Control-Allow-Credentials", "true")
+                 .build();
     }
 
     /**
