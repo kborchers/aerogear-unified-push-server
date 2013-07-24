@@ -81,10 +81,9 @@ public class PushNotificationSenderEndpoint {
 
         final PushApplication pushApplication = loadPushApplicationWhenAuthorized(request);
         if (pushApplication == null) {
-            return Response.status(Status.UNAUTHORIZED)
+            return appendAllowOriginHeader(Response.status(Status.UNAUTHORIZED)
                     .header("WWW-Authenticate", "Basic realm=\"AeroGear UnifiedPush Server\"")
-                    .entity("Unauthorized Request")
-                    .build();
+                    .entity("Unauthorized Request"), request);
         }
 
         // transform map to service object:
@@ -105,10 +104,9 @@ public class PushNotificationSenderEndpoint {
 
         final PushApplication pushApplication = loadPushApplicationWhenAuthorized(request);
         if (pushApplication == null) {
-            return Response.status(Status.UNAUTHORIZED)
+            return appendAllowOriginHeader(Response.status(Status.UNAUTHORIZED)
                     .header("WWW-Authenticate", "Basic realm=\"AeroGear UnifiedPush Server\"")
-                    .entity("Unauthorized Request")
-                    .build();
+                    .entity("Unauthorized Request"), request);
         }
 
         // transform map to service object:
